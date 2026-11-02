@@ -1,3 +1,29 @@
 # frozen_string_literal: true
 
-require_relative "gradia/application"
+# The library: every ported component, then the application that opens the
+# window. One upstream source file maps to one file here.
+require_relative 'logger'
+require_relative 'colors'
+require_relative 'aspect_ratio'
+require_relative 'timestamp_filename'
+require_relative 'settings'
+require_relative 'app_constants'
+require_relative 'background'
+require_relative 'gradient'
+require_relative 'solid_background'
+require_relative 'image_background'
+require_relative 'loaded_image'
+require_relative 'drawing_actions'
+require_relative 'tool_config'
+require_relative 'clipboard'
+require_relative 'std_image_loader'
+require_relative 'style'
+require_relative 'toggle_group'
+require_relative 'angle_selector'
+require_relative 'drop_overlay'
+require_relative 'shadowed_image_card'
+require_relative 'recent_picker'
+require_relative 'app_menu'
+require_relative 'about_dialog'
+require_relative 'shortcuts_dialog'
+require_relative 'gradia/application'
