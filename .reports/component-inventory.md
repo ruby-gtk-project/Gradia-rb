@@ -8,30 +8,36 @@ Upstream totals: 23 `.blp` files, 62 `.py` files, 21 blueprint template roots,
 
 ## What the port has today
 
-`lib/` on `ruby` now holds 25 flat files plus the skeleton application:
+`lib/` on `ruby` now holds 38 flat files, and the window they assemble into.
 
 | File | Covers |
 |---|---|
 | `lib/gradia.rb` | the library entry point — `require_relative` for every ported file |
-| `lib/gradia/application.rb` | `Gradia::Application` — still the skeleton window (`Gtk::Application` + `Adwaita::ToolbarView` + `Adwaita::HeaderBar` + placeholder `Adwaita::StatusPage`) |
+| `lib/application.rb` | `Gradia::Application` — `Gtk::Application` + `Adwaita::ApplicationWindow` holding an `Adwaita::OverlaySplitView`: the welcome page in its content area, the background selector in its sidebar, and the window actions those need |
 | `lib/gradia/rb/version.rb` | version constant |
 | model layer | `app_constants.rb`, `aspect_ratio.rb`, `background.rb`, `colors.rb`, `drawing_actions.rb`, `gradient.rb`, `image_background.rb`, `loaded_image.rb`, `settings.rb`, `solid_background.rb`, `timestamp_filename.rb`, `tool_config.rb` |
 | managers / plumbing | `clipboard.rb`, `logger.rb`, `std_image_loader.rb`, `style.rb` |
-| widgets and dialogs | `about_dialog.rb`, `angle_selector.rb`, `app_menu.rb`, `drop_overlay.rb`, `recent_picker.rb`, `shadowed_image_card.rb`, `shortcuts_dialog.rb`, `toggle_group.rb` |
+| welcome page | `welcome_page.rb`, `recent_picker.rb`, `shadowed_image_card.rb`, `drop_overlay.rb`, `app_menu.rb` |
+| background sidebar | `background_selector.rb`, `toggle_group.rb`, `solid_selector.rb`, `gradient_selector.rb`, `image_selector.rb`, `gradient_editor.rb`, `gradient_step_dialog.rb`, `preset_button.rb`, `angle_selector.rb` |
+| crop / canvas pieces | `aspect_ratio_selector.rb`, `aspect_ratio_button.rb`, `transparency_background.rb` |
+| dialogs | `about_dialog.rb`, `shortcuts_dialog.rb`, `confirm_close_dialog.rb`, `delete_screenshots_dialog.rb` |
 
-So the model layer, the app menu and the welcome-page widgets are in. **The
-editor itself is not**: the main window, the image stack, the sidebar, every
-background selector, the drawing tools, every overlay, every preference page,
-the Source Snippets window, the pin window, the loaders and the exporters are
-all still missing. `lib/welcome_page.rb` is absent too, so the ported
-`recent_picker` / `shadowed_image_card` / `drop_overlay` have nothing assembling
-them, and `lib/gradia/application.rb` still shows the placeholder status page.
+So the whole background-editing stack now works end to end: picking a mode
+switches the page and writes the setting, the solid swatches, the gradient dial,
+bar, presets and step dialog all round-trip through the stored JSON, and the
+image page previews and remembers a wallpaper.
 
-Note on layout: the house shape is one upstream source file to one
-`lib/<thing>.rb`, flat (as in the `gnome-contacts-rb` pilot). The ported files
-follow that; the application skeleton still sits at `lib/gradia/application.rb`
-and should move to `lib/application.rb` when the real application class replaces
-it.
+**The editor itself is still not there**: the main window
+(`gradia/ui/window.py`) with its 41 actions, the image stack, the image
+sidebar, the drawing tools, the drawing/crop/zoom overlays, every preference
+page, the Source Snippets window, the pin window, the loaders, the exporters,
+OCR and the image processor. Because no loader is ported, `lib/application.rb`
+does not register `open`, `screenshot`, `open-path`, `load-drop`,
+`create-source-image` or `preferences`, so the welcome page's buttons and the
+primary menu's items that point at them are insensitive rather than broken.
+
+`test/drive_app.rb` drives all of the above headlessly — 145 checks and 16
+screenshots over 60 steps.
 
 ## Component map
 
@@ -40,27 +46,27 @@ Kinds: `application`, `window`, `page`, `dialog`, `widget`, `row`, `overlay`,
 
 | # | Upstream file(s) | → port file | Kind | Exists |
 |---:|---|---|---|---|
-| 1 | `gradia/main.py`, `gradia/gradia.in` | `lib/application.rb` | application | partial (skeleton) |
+| 1 | `gradia/main.py`, `gradia/gradia.in` | `lib/application.rb` | application | partial (no CLI flags, no `app.pin` / `app.open`) |
 | 2 | `gradia/ui/window.py` + `data/ui/main_window.blp` | `lib/main_window.rb` | window | no |
 | 3 | `data/ui/image_sidebar.blp` (`menu app_menu`), `data/ui/welcome_page.blp` (`menu app_menu`) | `lib/app_menu.rb` | menu | yes |
 | 4 | `gradia/ui/ui_parts.py` (`AboutDialog`) | `lib/about_dialog.rb` | dialog | yes |
 | 5 | `gradia/ui/ui_parts.py` (`ShortcutsDialog`) | `lib/shortcuts_dialog.rb` | dialog | yes |
-| 6 | `gradia/ui/welcome_page.py` + `data/ui/welcome_page.blp` | `lib/welcome_page.rb` | page | no |
+| 6 | `gradia/ui/welcome_page.py` + `data/ui/welcome_page.blp` | `lib/welcome_page.rb` | page | yes |
 | 7 | `gradia/ui/recent_picker.py` + `data/ui/recent_picker.blp` | `lib/recent_picker.rb` | widget + error state | yes |
 | 8 | `gradia/ui/recent_picker.py` (`ShadowedImageCard`) | `lib/shadowed_image_card.rb` | widget | yes |
 | 9 | `gradia/ui/image_stack.py` + `data/ui/image_stack.blp` | `lib/image_stack.rb` | widget (editor canvas + OSD controls) | no |
 | 10 | `gradia/ui/image_sidebar.py` + `data/ui/image_sidebar.blp` | `lib/image_sidebar.rb` | widget (sidebar + rows) | no |
-| 11 | `gradia/ui/background_selector.py` + `data/ui/background_selector.blp` | `lib/background_selector.rb` | widget | no |
+| 11 | `gradia/ui/background_selector.py` + `data/ui/background_selector.blp` | `lib/background_selector.rb` | widget | yes |
 | 12 | `gradia/ui/widget/toggle_group.py` | `lib/toggle_group.rb` | widget | yes |
-| 13 | `gradia/graphics/solid.py` + `data/ui/selectors/solid_selector.blp` | `lib/solid_selector.rb` | widget (+ `ColorPresetButton`, `ColorPickerButton`) | no |
-| 14 | `gradia/graphics/gradient_selector.py` + `data/ui/selectors/gradient_selector.blp` | `lib/gradient_selector.rb` | widget | no |
-| 15 | `gradia/graphics/image.py` (`ImageSelector`) + `data/ui/selectors/image_selector.blp` | `lib/image_selector.rb` | widget | no |
+| 13 | `gradia/graphics/solid.py` + `data/ui/selectors/solid_selector.blp` | `lib/solid_selector.rb` | widget (+ `ColorPresetButton`, `ColorPickerButton`) | yes |
+| 14 | `gradia/graphics/gradient_selector.py` + `data/ui/selectors/gradient_selector.blp` | `lib/gradient_selector.rb` | widget | yes |
+| 15 | `gradia/graphics/image.py` (`ImageSelector`) + `data/ui/selectors/image_selector.blp` | `lib/image_selector.rb` | widget | yes |
 | 16 | `gradia/ui/widget/angle_selector.py` | `lib/angle_selector.rb` | widget (custom-drawn) | yes |
-| 17 | `gradia/ui/widget/gradient_editor.py` | `lib/gradient_editor.rb` | widget (+ `GradientColorButton`) | no |
-| 18 | `gradia/ui/widget/gradient_step_dialog_button.py` + `data/ui/gradient_step_dialog.blp` | `lib/gradient_step_dialog.rb` | dialog + button + row | no |
-| 19 | `gradia/ui/widget/preset_button.py` | `lib/preset_button.rb` | widget (gradient + image presets) | no |
-| 20 | `gradia/ui/widget/background_aspect_ratio_selector.py` | `lib/aspect_ratio_selector.rb` | row + popover | no |
-| 21 | `gradia/ui/widget/aspect_ratio_button.py` | `lib/aspect_ratio_button.rb` | widget + popover | no |
+| 17 | `gradia/ui/widget/gradient_editor.py` | `lib/gradient_editor.rb` | widget (+ `GradientColorButton`) | yes |
+| 18 | `gradia/ui/widget/gradient_step_dialog_button.py` + `data/ui/gradient_step_dialog.blp` | `lib/gradient_step_dialog.rb` | dialog + button + row | yes |
+| 19 | `gradia/ui/widget/preset_button.py` | `lib/preset_button.rb` | widget (gradient + image presets) | yes |
+| 20 | `gradia/ui/widget/background_aspect_ratio_selector.py` | `lib/aspect_ratio_selector.rb` | row + popover | yes |
+| 21 | `gradia/ui/widget/aspect_ratio_button.py` | `lib/aspect_ratio_button.rb` | widget + popover | yes |
 | 22 | `gradia/ui/drawing_tools_group.py` + `data/ui/drawing_tools_group.blp` | `lib/drawing_tools_group.rb` | widget | no |
 | 23 | `gradia/ui/widget/drawing_tools_grid.py` | `lib/drawing_tools_grid.rb` | widget | no |
 | 24 | `gradia/ui/widget/quick_color_picker.py` | `lib/quick_color_picker.rb` | widget (+ `SimpleColorPicker`) | no |
@@ -69,11 +75,11 @@ Kinds: `application`, `window`, `page`, `dialog`, `widget`, `row`, `overlay`,
 | 27 | `gradia/overlay/drawing_actions.py` | `lib/drawing_actions.rb` | model (11 action classes + `DrawingMode`) | yes |
 | 28 | `gradia/overlay/crop_overlay.py` | `lib/crop_overlay.rb` | overlay | no |
 | 29 | `gradia/overlay/zoom_controller.py` | `lib/zoom_controller.rb` | overlay | no |
-| 30 | `gradia/overlay/transparency_overlay.py` | `lib/transparency_background.rb` | overlay | no |
+| 30 | `gradia/overlay/transparency_overlay.py` | `lib/transparency_background.rb` | overlay | yes |
 | 31 | `gradia/overlay/drop_overlay.py` | `lib/drop_overlay.rb` | overlay + empty state | yes |
 | 32 | `gradia/overlay/text_entry_popover.py` + `data/ui/text_entry_popover.blp` | `lib/text_entry_popover.rb` | widget | no |
-| 33 | `gradia/ui/dialog/confirm_close_dialog.py` + `data/ui/confirm_close_dialog.blp` | `lib/confirm_close_dialog.rb` | dialog | no |
-| 34 | `gradia/ui/dialog/delete_screenshots_dialog.py` | `lib/delete_screenshots_dialog.rb` | dialog | no |
+| 33 | `gradia/ui/dialog/confirm_close_dialog.py` + `data/ui/confirm_close_dialog.blp` | `lib/confirm_close_dialog.rb` | dialog | yes |
+| 34 | `gradia/ui/dialog/delete_screenshots_dialog.py` | `lib/delete_screenshots_dialog.rb` | dialog | yes |
 | 35 | `gradia/ui/dialog/ocr_dialog.py` + `data/ui/ocr_dialog.blp` | `lib/ocr_dialog.rb` | dialog (+ loading / no-text / text states) | no |
 | 36 | `gradia/ui/dialog/ocr_launcher.py` | `lib/ocr_launcher.rb` | manager | no |
 | 37 | `gradia/ui/preferences/preferences_window.py` + `data/ui/preferences_window.blp` | `lib/preferences_window.rb` | dialog | no |

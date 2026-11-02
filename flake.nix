@@ -95,6 +95,23 @@
         typelibPath = pkgs.lib.makeSearchPath "lib/girepository-1.0"
           (map (drv: drv.out or drv) (gtkStack ++ [ pkgs.at-spi2-core ]));
 
+        # gdk-pixbuf only loads the formats its loaders.cache names, and the
+        # cache gdk-pixbuf ships lists its own loaders only. Eight of the nine
+        # wallpapers the app ships are WebP, so the cache is rebuilt here over
+        # gdk-pixbuf's loaders plus the WebP one — and librsvg's, which the
+        # symbolic icons need.
+        pixbufLoaderDirs = map (drv: "${drv}/lib/gdk-pixbuf-2.0/2.10.0/loaders")
+          [ pkgs.gdk-pixbuf pkgs.librsvg pkgs.webp-pixbuf-loader ];
+
+        pixbufLoaders = pkgs.runCommand "gradia-pixbuf-loaders"
+          { nativeBuildInputs = [ pkgs.gdk-pixbuf.dev ]; }
+          ''
+            mkdir -p $out
+            gdk-pixbuf-query-loaders ${
+              pkgs.lib.concatMapStringsSep " " (dir: "${dir}/*.so") pixbufLoaderDirs
+            } > $out/loaders.cache
+          '';
+
         # nix/ and not the repo root: the root Gemfile is kettle-jem's
         # development bundle — rubocop, rspec, yard, the kettle-dev stack — and
         # must not end up in a packaged app's runtime closure. nix/Gemfile holds
@@ -160,6 +177,7 @@
               --add-flags "-I$out/share/Gradia/lib" \
               --add-flags "$out/share/Gradia/exe/${launcher}" \
               --set GI_TYPELIB_PATH "${typelibPath}" \
+              --set GDK_PIXBUF_MODULE_FILE "${pixbufLoaders}/loaders.cache" \
               --prefix XDG_DATA_DIRS : "$out/share" \
               --prefix XDG_DATA_DIRS : "$out/share/gsettings-schemas/Gradia-0.1.0" \
               --prefix XDG_DATA_DIRS : "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}" \
@@ -208,6 +226,7 @@
           shellHook = ''
             export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk4}/share/gsettings-schemas/${pkgs.gtk4.name}:${pkgs.adwaita-icon-theme}/share:$XDG_DATA_DIRS"
             export GI_TYPELIB_PATH="${typelibPath}''${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}"
+            export GDK_PIXBUF_MODULE_FILE="${pixbufLoaders}/loaders.cache"
             export RUBYLIB="$PWD/lib''${RUBYLIB:+:$RUBYLIB}"
             [ -d data/schemas ] && export GSETTINGS_SCHEMA_DIR="$PWD/data/schemas"
             unset BUNDLE_GEMFILE BUNDLE_FROZEN

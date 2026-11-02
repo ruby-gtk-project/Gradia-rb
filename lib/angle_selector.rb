@@ -30,6 +30,7 @@ class AngleSelector
   def initialize(angle: 0, &on_angle_changed)
     @angle = angle
     @on_angle_changed = on_angle_changed
+    @on_angle_update = nil
     @dragging = false
   end
 
@@ -53,6 +54,15 @@ class AngleSelector
 
   def on_angle_changed(&block)
     @on_angle_changed = block
+  end
+
+  # Fires for every angle the handle passes through, where on_angle_changed
+  # fires once the drag ends. Upstream gets the two from the `angle-changed`
+  # signal and the `notify::angle` property notification respectively, and the
+  # gradient selector needs both: the entry tracks the handle live, while the
+  # gradient is only rebuilt once the handle settles.
+  def on_angle_update(&block)
+    @on_angle_update = block
   end
 
   def angle=(degrees)
@@ -157,7 +167,14 @@ class AngleSelector
         if (@angle - wrapped).abs > 0.5
           @angle = wrapped.round
           drawing_area.queue_draw
+          emit_angle_update
         end
+      end
+    end
+
+    def emit_angle_update
+      if @on_angle_update
+        @on_angle_update.call(@angle)
       end
     end
 
