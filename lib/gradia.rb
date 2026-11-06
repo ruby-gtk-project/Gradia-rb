@@ -3,7 +3,7 @@
 # The library: every ported component, then the application that opens the
 # window. One upstream source file maps to one file here.
 require_relative 'logger'
-require_relative 'colors'
+require_relative 'color_conversions'
 require_relative 'aspect_ratio'
 require_relative 'timestamp_filename'
 require_relative 'settings'
@@ -34,6 +34,8 @@ require_relative 'aspect_ratio_selector'
 require_relative 'aspect_ratio_button'
 require_relative 'background_selector'
 require_relative 'welcome_page'
+require_relative 'font_dropdown'
+require_relative 'text_entry_popover'
 require_relative 'app_menu'
 require_relative 'about_dialog'
 require_relative 'shortcuts_dialog'

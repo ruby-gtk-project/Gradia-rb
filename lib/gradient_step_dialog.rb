@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'adwaita'
-require_relative 'colors'
+require_relative 'color_conversions'
 require_relative 'gradient'
 
 # GradientStepRow is one row of the step editor: a colour button, a percentage

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'adwaita'
-require_relative 'colors'
+require_relative 'color_conversions'
 require_relative 'solid_background'
 
 # ColorPresetButton is one swatch in the solid-colour grid: a 40×40 square

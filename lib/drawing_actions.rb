@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'adwaita'
-require_relative 'colors'
+require_relative 'color_conversions'
 require_relative 'logger'
 
 # DrawingMode is one of the ten annotation tools: its stable name (what the

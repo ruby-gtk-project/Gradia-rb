@@ -2,7 +2,7 @@
 
 require 'adwaita'
 require 'json'
-require_relative 'colors'
+require_relative 'color_conversions'
 require_relative 'drawing_actions'
 require_relative 'logger'
 require_relative 'settings'

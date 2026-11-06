@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'adwaita'
-require_relative 'colors'
+require_relative 'color_conversions'
 
 # GradientColorButton is one stop on the gradient bar: a round swatch filled
 # with the stop's colour, carrying a pencil icon, which is dragged along the

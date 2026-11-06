@@ -3,7 +3,7 @@
 require 'adwaita'
 require 'json'
 require_relative 'background'
-require_relative 'colors'
+require_relative 'color_conversions'
 
 # Gradient is the serialisable description of a gradient background: a mode, a
 # list of (position, "rgb(r,g,b)") steps and an angle. GradientBackground

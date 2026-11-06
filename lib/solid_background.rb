@@ -3,7 +3,7 @@
 require 'adwaita'
 require 'json'
 require_relative 'background'
-require_relative 'colors'
+require_relative 'color_conversions'
 
 # SolidBackground fills the whole canvas with one colour at one opacity.
 #

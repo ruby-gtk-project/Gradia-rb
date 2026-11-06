@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'adwaita'
-require_relative 'colors'
+require_relative 'color_conversions'
 
 # AngleSelector is the round gradient-angle control: a ring with tick marks at
 # the quarter turns and a teardrop handle that is dragged around it, snapping

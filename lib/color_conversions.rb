@@ -10,6 +10,11 @@ require 'adwaita'
 # Gdk.RGBA iterable, so `*rgba` and `for c in rgba` work; the Ruby binding does
 # not, so `components` is the explicit form of that and every helper here takes
 # either an RGBA or an array of channels.
+#
+# Filed as color_conversions.rb rather than colors.rb: the cairo gem's own
+# "cairo/color" does a bare `require "colors"` for the colors gem it depends
+# on, and this file sitting on $LOAD_PATH as lib/colors.rb shadowed it,
+# breaking `require "gtk4"` itself everywhere this app's lib/ is on RUBYLIB.
 module Colors
   LUMINANCE_THRESHOLD = 130
 
