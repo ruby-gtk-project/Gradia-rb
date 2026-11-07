@@ -2,6 +2,13 @@
 
 # The library: every ported component, then the application that opens the
 # window. One upstream source file maps to one file here.
+#
+# glib2 is a declared gemspec dependency and GLib::/Gio:: constants are used
+# throughout lib/ (GLib::Idle.add, Gio::File, Gio::Menu, ...), but every one
+# of those uses previously relied on glib2 being pulled in transitively by
+# 'adwaita'/'gtk4' rather than requiring it directly. Require it explicitly
+# so the dependency on gemspec and code match.
+require 'glib2'
 require_relative 'logger'
 require_relative 'color_conversions'
 require_relative 'aspect_ratio'
