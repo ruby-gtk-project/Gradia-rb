@@ -290,6 +290,11 @@ class SimpleColorPicker
 
     def popover
       @popover ||= Gtk::Popover.new.tap do |pop|
+        # Assigned before `rebuild_popover` runs, not after: that method calls
+        # back into `popover` to set its child, and with `@popover` still nil
+        # at that point (the `||=` above has not returned yet) each call built
+        # a fresh Popover and recursed into rebuild_popover again, forever.
+        @popover = pop
         pop.set_parent(button)
         pop.position = :bottom
         rebuild_popover

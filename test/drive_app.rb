@@ -3,9 +3,9 @@
 # Drives the window the port opens: the overlay split view, the welcome page in
 # its content area, the background selector in its sidebar, the primary menu
 # and the dialogs behind it, and every widget those are built from. Also
-# drives FontDropdown, TextEntryPopover, DrawingToolsGrid and PinWindow in a
-# scratch window: all four are ported but not yet wired into any parent widget
-# by the app itself.
+# drives FontDropdown, TextEntryPopover, DrawingToolsGrid, PinWindow,
+# QuickColorPicker and SimpleColorPicker in a scratch window: all six are
+# ported but not yet wired into any parent widget by the app itself.
 #
 # Run with: nix develop --command xvfb-run -a ruby test/drive_app.rb
 require 'tmpdir'
@@ -754,6 +754,95 @@ GtkDriver.drive(app, shots: 'tmp/shots') do |d, _app|
       PinWindow.new(app.app).build
       true
     end
+  end
+
+  quick_picker = nil
+  quick_picker_colors = []
+  d.step('the quick color picker starts on its default colour') do
+    quick_picker = QuickColorPicker.new
+    quick_picker.on_color_changed { |color| quick_picker_colors << color }
+    scratch.child = quick_picker.build
+
+    d.check('six swatches plus the more-colors button') { quick_picker.instance_variable_get(:@buttons).length == 6 }
+    d.check('nothing reported yet') { quick_picker_colors.empty? }
+    d.check('no swatch is checked for the default colour') do
+      quick_picker.instance_variable_get(:@buttons).none? { |_button, _color, checkmark| checkmark.css_classes.include?('visible') }
+    end
+  end
+
+  d.step('the quick color picker renders') { d.shot('21-quick-color-picker', scratch) }
+
+  d.step('clicking a swatch reports it and checks it') do
+    _button, green, checkmark = quick_picker.instance_variable_get(:@buttons)[1]
+    quick_picker.instance_variable_get(:@buttons)[1].first.signal_emit('clicked')
+
+    d.check('green was reported') { quick_picker_colors.last == green }
+    d.check('quick_picker.color followed') { quick_picker.color == green }
+    d.check('the green swatch is checked') { checkmark.css_classes.include?('visible') }
+  end
+
+  d.step('assigning a colour moves the checkmark without a callback') do
+    quick_picker_colors.clear
+    red = quick_picker.instance_variable_get(:@buttons)[0][1]
+    quick_picker.color = red
+
+    d.check('no callback fired for a direct assignment') { quick_picker_colors.empty? }
+    d.check('the red swatch is checked') { quick_picker.instance_variable_get(:@buttons)[0][2].css_classes.include?('visible') }
+    d.check('the green swatch is not') { !quick_picker.instance_variable_get(:@buttons)[1][2].css_classes.include?('visible') }
+  end
+
+  d.step('replacing the colour list rebuilds the row') do
+    quick_picker.color_list = [[Gdk::RGBA.new(0.5, 0.5, 0.5, 1.0), 'Grey']]
+    d.check('one swatch plus the more-colors button') { quick_picker.instance_variable_get(:@buttons).length == 1 }
+  end
+
+  simple_picker = nil
+  simple_picker_colors = []
+  d.step('the simple color picker starts with no icon or label') do
+    simple_picker = SimpleColorPicker.new
+    simple_picker.on_color_changed { |color| simple_picker_colors << color }
+    scratch.child = simple_picker.build
+
+    d.check('icon hidden with no icon_name') { !simple_picker.instance_variable_get(:@icon).visible? }
+    d.check('label hidden with no text') { !simple_picker.instance_variable_get(:@label).visible? }
+  end
+
+  d.step('setting an icon and text shows both') do
+    simple_picker.icon_name = 'edit-symbolic'
+    simple_picker.text = 'Pick'
+
+    d.check('icon now visible') { simple_picker.instance_variable_get(:@icon).visible? }
+    d.check('label now visible with the text') { simple_picker.instance_variable_get(:@label).text == 'Pick' }
+  end
+
+  d.step('the simple color picker renders') { d.shot('22-simple-color-picker', scratch) }
+
+  d.step('clicking it opens a popover of swatches, including Transparent') do
+    simple_picker.instance_variable_get(:@button).signal_emit('clicked')
+    popover = simple_picker.instance_variable_get(:@popover)
+
+    d.check('the popover is up') { popover.visible? }
+    d.check('base colours plus Transparent plus more-colors') do
+      child = popover.child.first_child
+      count = 0
+      while child
+        count += 1
+        child = child.next_sibling
+      end
+      count == 8
+    end
+  end
+
+  d.step('picking a swatch from the popover reports it and closes the popover') do
+    popover = simple_picker.instance_variable_get(:@popover)
+    popover.child.first_child.signal_emit('clicked')
+
+    d.check('a colour was reported') { !simple_picker_colors.empty? }
+    d.check('simple_picker.color followed') { simple_picker.color == simple_picker_colors.last }
+  end
+
+  d.step('and the popover closed after the pick, on the next tick') do
+    d.check('closed') { !simple_picker.instance_variable_get(:@popover).visible? }
   end
 
   d.step('the window still renders after all of that') do
