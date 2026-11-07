@@ -220,6 +220,58 @@ check('uniform image has no padding to balance') do
   end
 end
 
+section 'ImageProcessor'
+check('composites onto a solid background with padding') do
+  ImageProcessor.new(image: loaded, background: SolidBackground.new, padding: 10).then do |processor|
+    pixbuf, full_width, full_height = processor.process
+    pixbuf.width > loaded.preview_image.width && full_width > 0 && full_height > 0
+  end
+end
+check('negative padding crops instead of padding') do
+  ImageProcessor.new(image: loaded, padding: -10).then do |processor|
+    pixbuf, = processor.process
+    pixbuf.width < loaded.preview_image.width
+  end
+end
+check('aspect ratio widens or heightens the canvas') do
+  ImageProcessor.new(image: loaded, aspect_ratio: '16:9').then do |processor|
+    pixbuf, = processor.process
+    (pixbuf.width.to_f / pixbuf.height).round(2) == (16.0 / 9).round(2)
+  end
+end
+check('rounded corners and a shadow do not raise') do
+  ImageProcessor.new(
+    image:           loaded,
+    background:      SolidBackground.new,
+    padding:         5,
+    corner_radius:   15,
+    shadow_strength: 4,
+  ).process[0].is_a?(GdkPixbuf::Pixbuf)
+end
+check('rotation turns a wider image taller') do
+  ImageProcessor.new(image: loaded, rotation: 90).then do |processor|
+    pixbuf, = processor.process
+    pixbuf.height == loaded.preview_image.width && pixbuf.width == loaded.preview_image.height
+  end
+end
+check('full resolution render scales up from the preview') do
+  ImageProcessor.new(image: loaded, background: SolidBackground.new, padding: 10).then do |processor|
+    processor.process
+    full = processor.process_full_resolution
+    full.width > loaded.preview_image.width
+  end
+end
+check('a missing image refuses instead of silently rendering blank') do
+  LoadedImage.new('/nonexistent/x.png', ImageOrigin::FILE_DIALOG).then do |missing|
+    begin
+      ImageProcessor.new(image: missing)
+      false
+    rescue ArgumentError
+      true
+    end
+  end
+end
+
 section 'DrawingMode'
 check('ten tools') { DrawingMode::ALL.length == 10 }
 check('lookup by name') { DrawingMode['PEN'] == DrawingMode::PEN }
