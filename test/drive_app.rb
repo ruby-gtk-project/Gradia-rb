@@ -3,8 +3,9 @@
 # Drives the window the port opens: the overlay split view, the welcome page in
 # its content area, the background selector in its sidebar, the primary menu
 # and the dialogs behind it, and every widget those are built from. Also
-# drives FontDropdown and TextEntryPopover in a scratch window: both are
-# ported but not yet wired into any parent widget by the app itself.
+# drives FontDropdown, TextEntryPopover, DrawingToolsGrid and PinWindow in a
+# scratch window: all four are ported but not yet wired into any parent widget
+# by the app itself.
 #
 # Run with: nix develop --command xvfb-run -a ruby test/drive_app.rb
 require 'tmpdir'
@@ -673,7 +674,77 @@ GtkDriver.drive(app, shots: 'tmp/shots') do |d, _app|
     d.check('the activate handler ran with that text') { entry_activated.last == 'confirmed' }
   end
 
+  tools_grid = nil
+  tool_changes = []
+  d.step('the drawing tools grid starts on the stored tool and reports picks') do
+    tools_grid = DrawingToolsGrid.new(settings: Settings.new) { |config| tool_changes << config.mode }
+    scratch.child = tools_grid.build
+
+    d.check('ten tool buttons') { tools_grid.current_tool.mode == DrawingMode::SELECT }
+    d.check('select was reported on build') { tool_changes.last == DrawingMode::SELECT }
+  end
+
+  d.step('the drawing tools grid renders') { d.shot('19-drawing-tools-grid', scratch) }
+
+  d.step('picking a tool switches it, deactivates the rest, and persists the mode') do
+    tools_grid.set_current_tool(DrawingMode::PEN)
+    d.check('pen became current') { tools_grid.current_tool.mode == DrawingMode::PEN }
+    d.check('the pick was reported') { tool_changes.last == DrawingMode::PEN }
+    d.check('and stored') { Settings.new.draw_mode == 'PEN' }
+
+    tools_grid.set_current_tool(DrawingMode::CIRCLE)
+    d.check('only circle is active now') do
+      tools_grid.current_tool.mode == DrawingMode::CIRCLE &&
+        tools_grid.instance_variable_get(:@buttons).count { |_mode, button| button.active? } == 1
+    end
+  end
+
+  d.step('the secondary highlight marks a tool without selecting it') do
+    tools_grid.set_secondary_highlight_tool(DrawingMode::ARROW)
+    arrow_button = tools_grid.instance_variable_get(:@buttons).fetch(DrawingMode::ARROW)
+    d.check('the arrow button is accented') { arrow_button.css_classes.include?('accent') }
+    d.check('circle is still the active tool') { tools_grid.current_tool.mode == DrawingMode::CIRCLE }
+  end
+
+  pin_window = nil
+  d.step('the pin window loads the exported image at a scaled-down size') do
+    pin_window = PinWindow.new(app.app, file_path: File.join(AppConstants::IMAGES_DIR, 'graph.png'))
+    pin_window.build
+    pin_window.window.present
+
+    d.check('resizable is off, matching the floating OSD style') { !pin_window.window.resizable? }
+    d.check('a picture was loaded') { !pin_window.picture.paintable.nil? }
+    d.check('the window scaled down to at most half the monitor') do
+      pin_window.window.default_size.first <= (Gdk::Display.default.monitors.get_item(0).geometry.width * 0.5).to_i
+    end
+    d.check('it starts fully opaque') { pin_window.window.opacity == PinWindow::HOVER_OPACITY }
+  end
+
+  d.step('the pin window renders') { d.shot('20-pin-window', pin_window.window) }
+
+  d.step('hovering the picture dims the window, and leaving restores it') do
+    pin_window.hover_controller.signal_emit('enter', 0.0, 0.0)
+    pin_window.fade_out_animation.skip
+    d.check('hovering dims it, so the desktop behind it stays reachable') do
+      (pin_window.window.opacity - PinWindow::IDLE_OPACITY).abs < 0.01
+    end
+
+    pin_window.hover_controller.signal_emit('leave')
+    pin_window.fade_in_animation.skip
+    d.check('leaving restores full opacity') do
+      (pin_window.window.opacity - PinWindow::HOVER_OPACITY).abs < 0.01
+    end
+  end
+
+  d.step('a pin window with no file path warns instead of raising') do
+    d.check('build completes without an image') do
+      PinWindow.new(app.app).build
+      true
+    end
+  end
+
   d.step('the window still renders after all of that') do
+    pin_window.window.close
     scratch.close
     d.shot('16-window-final')
   end

@@ -659,6 +659,76 @@ check('newest images first, capped at six') do
   end
 end
 
+section 'OCR'
+Dir.mktmpdir do |tessdata_dir|
+  Dir.mktmpdir do |data_home|
+    ENV['GRADIA_OCR_TESSDATA_DIR'] = tessdata_dir
+    ENV['GRADIA_OCR_TESSERACT_CMD'] = '/nonexistent/tesseract'
+    ENV['XDG_DATA_HOME'] = data_home
+    OCR.tessdata_cache = nil
+
+    ocr = OCR.new(settings: Settings.new)
+    check('downloadable models come from the bundled resource') { !ocr.get_downloadable_models.empty? }
+    check('each downloadable model carries a name and a size') do
+      ocr.get_downloadable_models.all? { |model| !model.name.to_s.empty? && model.size.is_a?(Integer) }
+    end
+    check('nothing installed on a fresh tessdata directory') { ocr.get_installed_models.empty? }
+    check('an uninstalled model is reported as such') { !ocr.is_model_installed('eng') }
+    check('setting an uninstalled model raises') do
+      begin
+        ocr.set_current_model('eng')
+        false
+      rescue ArgumentError
+        true
+      end
+    end
+    check('extracting with nothing installed refuses instead of shelling out') do
+      begin
+        ocr.extract_text(File.join(AppConstants::IMAGES_DIR, 'graph.png'), 'eng')
+        false
+      rescue RuntimeError => error
+        error.message.include?('No OCR language models')
+      end
+    end
+    check('deleting a model that is not there reports failure, not an exception') do
+      !ocr.delete_model('eng')
+    end
+
+    # delete_model only ever touches the user's own tessdata directory, never
+    # the system one (deleting a system-owned file is not the app's call), so
+    # the install used to exercise it lands in user_tessdata_dir.
+    File.join(ocr.user_tessdata_dir, 'eng.traineddata').tap do |path|
+      FileUtils.mkdir_p(File.dirname(path))
+      File.write(path, 'stub')
+    end
+    check('a traineddata file on disk is picked up as installed') { ocr.get_installed_models.include?('eng') }
+    check('installed models exclude the osd data') do
+      File.join(ocr.user_tessdata_dir, 'osd.traineddata').tap { |path| File.write(path, 'stub') }
+      !OCR.new(settings: Settings.new).get_installed_models.include?('osd')
+    end
+    check('extracting with an uninstalled language still refuses') do
+      begin
+        ocr.extract_text(File.join(AppConstants::IMAGES_DIR, 'graph.png'), 'fra')
+        false
+      rescue RuntimeError => error
+        error.message.include?("'fra' is not installed")
+      end
+    end
+    check('setting an installed model takes') do
+      ocr.set_current_model('eng')
+      ocr.get_current_model == 'eng'
+    end
+    check('deleting the installed model removes its file') do
+      ocr.delete_model('eng')
+      !File.exist?(File.join(ocr.user_tessdata_dir, 'eng.traineddata'))
+    end
+    check('a window with no ocr action does not raise while syncing state') do
+      OCR.new(window: Gtk::ApplicationWindow.new(Gtk::Application.new), settings: Settings.new)
+      true
+    end
+  end
+end
+
 puts "\n#{$checks} checks, #{$failures.length} failed"
 $failures.each { |failure| puts "  FAILED: #{failure}" }
 exit($failures.empty? ? 0 : 1)

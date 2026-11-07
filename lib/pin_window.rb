@@ -29,6 +29,7 @@ class PinWindow
   def build
     window.tap do |win|
       win.resizable = false
+      win.opacity = HOVER_OPACITY
       win.child = window_handle
 
       window_handle.tap do |handle|
@@ -98,14 +99,18 @@ class PinWindow
 
   private
 
+    # Upstream dims the window on hover (so the content behind a pinned
+    # screenshot stays reachable) and restores it on leave; `fade_in` /
+    # `fade_out` name the opacity direction each animation drives, not which
+    # controller event plays them.
     def on_enter
-      fade_out_animation.pause
-      fade_in_animation.play
+      fade_in_animation.pause
+      fade_out_animation.play
     end
 
     def on_leave
-      fade_in_animation.pause
-      fade_out_animation.play
+      fade_out_animation.pause
+      fade_in_animation.play
     end
 
     def load_image
