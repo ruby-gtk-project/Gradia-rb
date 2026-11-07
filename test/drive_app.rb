@@ -2,7 +2,9 @@
 
 # Drives the window the port opens: the overlay split view, the welcome page in
 # its content area, the background selector in its sidebar, the primary menu
-# and the dialogs behind it, and every widget those are built from.
+# and the dialogs behind it, and every widget those are built from. Also
+# drives FontDropdown and TextEntryPopover in a scratch window: both are
+# ported but not yet wired into any parent widget by the app itself.
 #
 # Run with: nix develop --command xvfb-run -a ruby test/drive_app.rb
 require 'tmpdir'
@@ -605,6 +607,70 @@ GtkDriver.drive(app, shots: 'tmp/shots') do |d, _app|
       d.check('not loaded') { !card.loaded? }
       d.check('error recorded') { !card.load_error.nil? }
     end
+  end
+
+  font_dropdown = nil
+  font_changes = []
+  d.step('the font dropdown lists every family the font map knows') do
+    font_dropdown = FontDropdown.new { |font| font_changes << font }
+    scratch.child = font_dropdown.build
+
+    d.check('it has fonts') { !font_dropdown.fonts.empty? }
+    d.check('sorted') { font_dropdown.fonts == font_dropdown.fonts.sort }
+    d.check('nothing selected yet') { font_dropdown.selected_font.nil? }
+  end
+
+  d.step('the font dropdown renders') { d.shot('17-font-dropdown', scratch) }
+
+  d.step('picking a family reports it and setting one back moves the dropdown') do
+    # The dropdown starts on index 0, so selecting index 0 again fires no
+    # notify::selected — picking index 1 is what actually exercises the signal.
+    font_dropdown.dropdown.selected = 1
+    d.check('the second family was reported') { font_changes.last == font_dropdown.fonts[1] }
+    d.check('selected_font followed') { font_dropdown.selected_font == font_dropdown.fonts[1] }
+
+    font_dropdown.selected_font = font_dropdown.fonts.last
+    d.check('assigning moves the dropdown') { font_dropdown.dropdown.selected == font_dropdown.fonts.length - 1 }
+  end
+
+  entry_popover = nil
+  entry_changes = []
+  entry_activated = []
+  d.step('the text entry popover pops up pointing at the click') do
+    entry_popover = TextEntryPopover.new(
+      parent: scratch,
+      font_size: 14,
+      initial_text: 'hello',
+      on_text_activate: ->(popover) { entry_activated << popover.text },
+      on_text_changed: ->(buffer) { entry_changes << buffer.text },
+      on_font_size_changed: ->(_button) {},
+    )
+    entry_popover.build
+    entry_popover.popup_at_widget_coords(scratch, 10, 10)
+
+    d.check('starts with the initial text') { entry_popover.text == 'hello' }
+    d.check('the spin button holds the initial size') { entry_popover.spin.value == 14 }
+  end
+
+  d.step('the text entry popover renders') { d.shot('18-text-entry-popover', entry_popover.container) }
+
+  d.step('typing reports the change, and Escape restores the original') do
+    entry_popover.buffer.text = 'edited'
+    d.check('the change was reported') { entry_changes.last == 'edited' }
+
+    entry_popover.key_controller.signal_emit('key-pressed', Gdk::Keyval::KEY_Escape, 0, 0)
+    d.check('the text was restored') { entry_popover.text == 'hello' }
+  end
+
+  d.step('Ctrl+Return activates with the current text') do
+    entry_popover.buffer.text = 'confirmed'
+    entry_popover.key_controller.signal_emit(
+      'key-pressed',
+      Gdk::Keyval::KEY_Return,
+      0,
+      Gdk::ModifierType::CONTROL_MASK,
+    )
+    d.check('the activate handler ran with that text') { entry_activated.last == 'confirmed' }
   end
 
   d.step('the window still renders after all of that') do
