@@ -7,6 +7,7 @@ require_relative 'app_constants'
 require_relative 'app_menu'
 require_relative 'background_selector'
 require_relative 'logger'
+require_relative 'screenshot_portal'
 require_relative 'settings'
 require_relative 'shortcuts_dialog'
 require_relative 'style'
@@ -26,10 +27,15 @@ module Gradia
   # the welcome page in its content area and the background selector in its
   # sidebar, which is where gradia/ui/image_sidebar.py puts it. The actions
   # that need the unported loaders, exporters and overlays — `open`,
-  # `screenshot`, `open-path`, `load-drop`, `create-source-image`,
-  # `preferences` and the rest — are not registered, so GTK leaves every
-  # button and menu item pointing at them insensitive rather than failing when
-  # pressed.
+  # `open-path`, `load-drop`, `create-source-image`, `preferences` and the
+  # rest — are not registered, so GTK leaves every button and menu item
+  # pointing at them insensitive rather than failing when pressed.
+  #
+  # `screenshot` is the exception: it is registered and drives the real XDG
+  # Screenshot portal through the `ashpd` gem (see ScreenshotPortal). The
+  # image it captures has nowhere to go yet — the loader pipeline those other
+  # actions wait on — so it is written to the cache directory and logged
+  # rather than displayed.
   class Application
     DONATE_URI = 'https://ko-fi.com/alexandervanhee'
 
@@ -40,6 +46,7 @@ module Gradia
       'donate'         => [],
       'quit'           => ['<primary>q', '<primary>w'],
       'toggle-sidebar' => ['F9'],
+      'screenshot'     => [],
     }.freeze
 
     # Actions upstream declares with a parameter type, which decides both the
@@ -153,6 +160,13 @@ module Gradia
 
     def shortcuts_dialog = @shortcuts_dialog ||= ShortcutsDialog.new(window)
 
+    def screenshot_portal
+      @screenshot_portal ||= ScreenshotPortal.new(
+        window: window,
+        logger: logger,
+      )
+    end
+
     def icon_theme = @icon_theme ||= Gtk::IconTheme.get_for_display(Gdk::Display.default)
 
     private
@@ -189,6 +203,7 @@ module Gradia
         when 'quit' then window.close
         when 'toggle-sidebar' then split_view.show_sidebar = !split_view.show_sidebar?
         when 'sidebar-shown' then split_view.show_sidebar = parameter
+        when 'screenshot' then screenshot_portal.capture
         end
       end
   end

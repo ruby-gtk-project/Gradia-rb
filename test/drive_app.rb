@@ -63,7 +63,7 @@ GtkDriver.drive(app, shots: 'tmp/shots') do |d, _app|
   d.step('the window renders') { d.shot('01-window') }
 
   d.step('the window owns the actions the menu and the sidebar drive') do
-    %w[about shortcuts donate quit toggle-sidebar sidebar-shown].each do |name|
+    %w[about shortcuts donate quit toggle-sidebar sidebar-shown screenshot].each do |name|
       d.check(name) { app.window.lookup_action(name) }
     end
 
@@ -86,6 +86,19 @@ GtkDriver.drive(app, shots: 'tmp/shots') do |d, _app|
 
     app.window.lookup_action('sidebar-shown').activate(GLib::Variant.new(true))
     d.check('the parameterised action shows it again') { app.split_view.show_sidebar? }
+  end
+
+  d.step('win.screenshot drives the real ashpd portal call') do
+    app.window.lookup_action('screenshot').activate(nil)
+    d.check('the window hides while the portal request is in flight') { !app.window.visible? }
+  end
+
+  d.step('the portal request settles without crashing the app') do
+    # No portal daemon is running in this sandbox, so the request fails —
+    # ScreenshotPortal's error path still has to run and restore the window,
+    # which is what proves the gem call reached ashpd and came back instead
+    # of hanging or raising inside the Thread.
+    d.check('the window is shown again') { app.window.visible? }
   end
 
   d.step('win.about opens the About dialog') do
@@ -126,8 +139,8 @@ GtkDriver.drive(app, shots: 'tmp/shots') do |d, _app|
       d.check('screenshot button points at win.screenshot') do
         page.screenshot_button.action_name == 'win.screenshot'
       end
-      d.check('and is insensitive, because that action is not ported') do
-        !page.screenshot_button.sensitive?
+      d.check('and is sensitive: win.screenshot drives the real XDG portal') do
+        page.screenshot_button.sensitive?
       end
       d.check('open button points at win.open') { page.open_image_button.action_name == 'win.open' }
     end
