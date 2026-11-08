@@ -4,8 +4,10 @@
 # its content area, the background selector in its sidebar, the primary menu
 # and the dialogs behind it, and every widget those are built from. Also
 # drives FontDropdown, TextEntryPopover, DrawingToolsGrid, PinWindow,
-# QuickColorPicker and SimpleColorPicker in a scratch window: all six are
-# ported but not yet wired into any parent widget by the app itself.
+# QuickColorPicker, SimpleColorPicker and OCRDialog in a scratch window: all
+# seven are ported but not yet wired into any parent widget by the app
+# itself (OCRDialog's launcher and the image pipeline it would receive a
+# path from are not ported yet either).
 #
 # Run with: nix develop --command xvfb-run -a ruby test/drive_app.rb
 require 'tmpdir'
@@ -14,8 +16,43 @@ require 'fileutils'
 ENV['XDG_CONFIG_HOME'] = Dir.mktmpdir
 ENV['XDG_CACHE_HOME'] = Dir.mktmpdir
 
+# A fake `tesseract` so the OCRDialog step below exercises the real OCR
+# backend (lib/ocr.rb) end to end — thread, Soup-free download path untouched,
+# GLib::Idle hop back to the main loop — without needing the real binary or
+# real trained-data models installed. It writes text for "eng" and empty
+# output for "fra", so the dialog's text and no-text branches both get a real
+# run through the backend rather than a mocked result.
+ocr_fixture_dir = Dir.mktmpdir
+File.write(File.join(ocr_fixture_dir, 'tesseract'), <<~RUBY)
+  #!/usr/bin/env ruby
+  image_path, output_base, _flag, _tessdata_dir, _l, lang = ARGV
+  # lib/ocr.rb appends "+eng" to any non-English language it runs alongside
+  # an installed English model, so "fra" arrives as "fra+eng".
+  File.write("\#{output_base}.txt", lang.include?('fra') ? '' : 'Hello from the fake OCR backend')
+RUBY
+FileUtils.chmod('+x', File.join(ocr_fixture_dir, 'tesseract'))
+ENV['GRADIA_OCR_TESSERACT_CMD'] = File.join(ocr_fixture_dir, 'tesseract')
+ENV['GRADIA_OCR_TESSDATA_DIR'] = ocr_fixture_dir
+%w[eng fra].each { |code| FileUtils.touch(File.join(ocr_fixture_dir, "#{code}.traineddata")) }
+
 require_relative '../lib/gradia'
 require_relative 'gtk_driver'
+
+# Pumps the real GLib main loop until `condition` is true or `seconds` pass.
+# OCRDialog's extraction runs on a background Thread and reports back through
+# `GLib::Idle.add`, so it lands on whatever main-loop iteration happens to be
+# running when the subprocess finishes rather than reliably inside the single
+# tick GtkDriver gives each step — this waits the real result in, rather than
+# assuming one fixed-length tick is enough.
+def wait_until(seconds = 3)
+  deadline = Time.now + seconds
+  until yield
+    break if Time.now >= deadline
+
+    GLib::MainContext.default.iteration(true)
+  end
+  yield
+end
 
 screenshot_folder = Dir.mktmpdir
 # Distinct modification times, so "newest first" has one right answer.
@@ -845,7 +882,53 @@ GtkDriver.drive(app, shots: 'tmp/shots') do |d, _app|
     d.check('closed') { !simple_picker.instance_variable_get(:@popover).visible? }
   end
 
+  ocr_dialog = nil
+  d.step('the OCR dialog runs the backend and starts on the loading page') do
+    ocr_dialog = OCRDialog.new(File.join(AppConstants::IMAGES_DIR, 'graph.png'))
+    ocr_dialog.build
+    ocr_dialog.present(app.window)
+
+    d.check('language button starts on the stored model (English)') { ocr_dialog.language_button.label == 'English' }
+  end
+
+  d.step('the fake tesseract run lands and the dialog shows the extracted text') do
+    wait_until { ocr_dialog.stack.visible_child_name != 'loading' }
+
+    d.check('moved off the loading page') { ocr_dialog.stack.visible_child_name == 'text' }
+    d.check('the real OCR backend wrote the text') { ocr_dialog.text == 'Hello from the fake OCR backend' }
+  end
+
+  d.step('the OCR dialog renders with text') { d.shot('23-ocr-dialog-text') }
+
+  d.step('copying the text puts it on the clipboard and shows a toast') do
+    ocr_dialog.send(:copy_text)
+
+    clipboard_text = nil
+    Gdk::Display.default.clipboard.read_text_async(nil) do |clipboard, result|
+      clipboard_text = clipboard.read_text_finish(result)
+    end
+    wait_until { !clipboard_text.nil? }
+
+    d.check('the clipboard holds the extracted text') { clipboard_text == 'Hello from the fake OCR backend' }
+  end
+
+  d.step('switching the language menu to French re-runs OCR') do
+    ocr_dialog.send(:on_language_selected, 'fra')
+
+    d.check('the language button label followed the pick') { ocr_dialog.language_button.label == 'French' }
+    d.check('back on the loading page while the fake run happens') { ocr_dialog.stack.visible_child_name == 'loading' }
+  end
+
+  d.step('French comes back empty, landing on the no-text page') do
+    wait_until { ocr_dialog.stack.visible_child_name != 'loading' }
+
+    d.check('the stack moved to the no-text status page') { ocr_dialog.stack.visible_child_name == 'no-text' }
+  end
+
+  d.step('the OCR dialog renders on the no-text page') { d.shot('24-ocr-dialog-no-text') }
+
   d.step('the window still renders after all of that') do
+    ocr_dialog.dialog.close
     pin_window.window.close
     scratch.close
     d.shot('16-window-final')
