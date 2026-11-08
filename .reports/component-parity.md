@@ -17,7 +17,9 @@ component-parity failure by definition, not an open question:
 - the preferences window and all five of its pages (OCR model page,
   screenshot-guide page, provider-list/custom-provider/provider-detail
   pages)
-- the OCR backend, `OCRDialog`, `ocr_launcher`
+- `ocr_launcher` (the backend's `OCRDialog` *presentation* is now ported —
+  see the spot-check below — but the launcher that upstream uses to open
+  it from the real window is not, because the window isn't)
 - `source_image_generator` window
 - image load/export flows (open, paste, save, copy, share)
 - the window's own `win.*` actions and accelerators (the `ShortcutsDialog`
@@ -50,6 +52,16 @@ a handful rather than exhaustively walking all four axes on all ~26 files
   has every one of those same nine strings as a bare literal with no
   translation marker — one more component-level instance of the gap the
   translation-parity report states at the catalogue level.
+- `lib/ocr_dialog.rb` (ported since the prior pass of this report, commit
+  `59f3f19`) — count and behaviour read as faithful on the axes the drive
+  script exercises: language dropdown starting on the stored model,
+  loading → text / no-text stack pages, copy-to-clipboard with a toast.
+  **Text axis fails here too**: the dialog's page titles and the copy
+  button/toast strings are bare Ruby literals; upstream's
+  `gradia/ui/dialog/ocr_dialog.py` wraps its equivalents in `_()`. It is
+  also only reachable from `test/drive_app.rb`'s scratch window — there is
+  no `ocr_launcher` wiring it to a real action, so it cannot be opened
+  from the app as the app does not yet have an app to open it from.
 - `lib/drawing_actions.rb` ports the 9 concrete `DrawingAction` subclasses
   and `DrawingMode`/`QuadBounds` as a model, but — per the inventory — has
   no `drawing_overlay.rb` to ever invoke it from pointer input. A model

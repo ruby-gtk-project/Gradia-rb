@@ -5,23 +5,24 @@
 ```
 grep -rniE "TODO|FIXME|not implemented|for now|in a future" lib exe
 ```
-→ no matches.
+→ re-run against `lib/` and `exe/` at the current `ruby` HEAD (`59f3f19`,
+including the new `lib/ocr_dialog.rb`): no matches.
 
 ```
 grep -rniE "TODO|FIXME|not implemented|for now|in a future|never (run|executed)|not .* run|has not been" .reports
 ```
 → re-run against the current `.reports/` (after this pass's corrections to
-`component-inventory.md` and `component-identification.md`): no matches
-outside this file's own quoted grep commands. The earlier pass of this
-report recorded one hit, in since-edited wording in
-`component-inventory.md` about a gschema key not having been
-"re-verified"; that exact wording no longer appears verbatim after this
-pass's edits, but the substance it stated — several axes of the port not
-independently re-verified line-by-line — is still true and is restated
-plainly throughout `component-parity.md` and this report, not papered
-over. Either way, nothing found in either pass is excuse-writing: a
-sentence that admits a gap was not checked is the opposite of the failure
-this skill hunts.
+`component-inventory.md`, `component-identification.md`,
+`component-parity.md` and `test-parity.md` for the OCR dialog landing and
+the drive script growing from 193/40 to 200/48 checks/components): no
+matches outside this file's own and `test-parity.md`'s quoted grep
+commands and the deliberate "never been exercised"/"not re-verified"
+sentences those two reports use to state a gap plainly. That is the
+correct use of that language, not an instance of the failure mode: a
+sentence admitting a gap was not checked, in a report whose job is to say
+so, is the opposite of excuse-writing. No instance of `lib/` or `exe/`
+code writing itself permission to skip something was found in either
+pass.
 
 There is no `PORTING.md` or `FINDINGS.md` in this repository to grep.
 `lib/settings.rb`'s header explaining why it swaps `Gio::Settings` for a
@@ -37,55 +38,65 @@ audit.
 
 ## The real accountability problem here is not a sentence — it's a number
 
-The task's runtime gate is **drive_ok=true, 193 checks passed, 0 failed,
-covering 40 components.** Read in isolation, that is a green gate. Read
-against what this audit found in the other four reports, it is a **false
-or at minimum badly overclaimed green**, for three compounding reasons,
-each independently confirmed in this audit:
+The task's runtime gate this round is **drive_ok=true, 200 checks passed,
+0 failed, covering 48 components** (re-run live for this audit: confirmed
+`200 of 200 checks passed` / `DRIVE OK`, up from 193/40 in the prior
+round's gate, because of the OCR dialog's addition in `59f3f19`). Read in
+isolation, that is a green gate. Read against what this audit found in
+the other four reports, it is a **false or at minimum badly overclaimed
+green**, for four compounding reasons, three carried over unchanged from
+the prior pass and one new in this run:
 
-1. **"40 components" is being measured against a port that is missing its
-   main window, image stack, sidebar, drawing overlay, crop, zoom, OCR
-   (entire feature), preferences (entire window), and image load/export.**
-   Per `.reports/component-inventory.md`, that's roughly half the upstream
-   component inventory. A gate that reports "40 components, 0 failed" next
-   to a component inventory that independently lists this many MISSING
-   rows is not a contradiction only because the 40 checked components were
-   never claimed to be all of them — but presenting "193 passed, 0 failed"
-   as *the* runtime gate for the whole port, without the component count
-   it was taken from sitting next to the inventory's missing-list, is
-   exactly the setup for a reader to over-credit it. This report is
-   flagging that risk explicitly so the number is never read alone again.
-2. **At least one of those 193 "passed" checks asserts a feature's
+1. **"48 components" is being measured against a port that is still
+   missing its main window, image stack, sidebar, drawing overlay, crop,
+   zoom, the OCR launcher, preferences (entire window), and image
+   load/export.** Per `.reports/component-inventory.md`, that's still
+   roughly half the upstream component inventory — the OCR *dialog*
+   landed this round, but the OCR *feature* (reachable from a real
+   window) did not. A gate that reports "48 components, 0 failed" next to
+   a component inventory that independently lists this many MISSING rows
+   is not a contradiction only because the 48 checked components were
+   never claimed to be all of them — but presenting "200 passed, 0
+   failed" as *the* runtime gate for the whole port, without the
+   component count it was taken from sitting next to the inventory's
+   missing-list, is exactly the setup for a reader to over-credit it.
+2. **At least one of those 200 "passed" checks asserts a feature's
    absence as success**, by its own name: `d.check('the loaders are not
    ported, so win.open is absent') { app.window.lookup_action('open').nil? }`
-   (`test/drive_app.rb`, step 2). This is written honestly in the moment —
-   the check's label says exactly what it's really testing — but it means
-   the single headline number "193 of 193 checks passed" is not 193
-   confirmations that functionality works. It is some unknown mix of
-   "works as designed" and "confirmed still missing," collapsed into one
-   green tally. Nothing downstream of that number (including the task
-   prompt that cites it as this round's gate) can currently tell those
-   two kinds of check apart without reading all 751 lines of the script.
-   That is the false-green risk this skill exists to name: a true,
-   accurately-labeled check whose result is nonetheless reported upward
-   in a way that reads as more reassuring than it is.
+   (`test/drive_app.rb`, step 2, unchanged this round). This is written
+   honestly in the moment — the check's label says exactly what it's
+   really testing — but it means the single headline number "200 of 200
+   checks passed" is not 200 confirmations that functionality works. It
+   is some unknown mix of "works as designed" and "confirmed still
+   missing," collapsed into one green tally.
 3. **The port's actual chosen test framework has never been run with a
-   single spec in it.** `spec/` holds zero `*_spec.rb` files;
-   `RSpec::Core::Runner` reports `0 examples, 0 failures`. That is a
-   passing exit code and zero verification. If anyone cites "the test
-   suite passes" without qualifying which suite, that sentence is false
-   for the RSpec suite and true-but-narrow for `drive_app.rb`. No document
-   in this repository currently makes that distinction before this audit.
+   single spec in it**, re-confirmed this pass: `spec/` still holds zero
+   `*_spec.rb` files; `RSpec::Core::Runner` still reports `0 examples, 0
+   failures`. That is a passing exit code and zero verification.
+4. **New this round: the drive script's own final screenshot step
+   silently failed to render**, and that failure sits inside the "200
+   passed" run, not counted against it. Re-running `test/drive_app.rb`
+   live for this audit produced `shot 16-window-final failed:
+   RuntimeError: widget produced no render node (not realised yet?)`
+   immediately before the "200 of 200 checks passed / DRIVE OK" lines,
+   alongside several `Gtk-WARNING: Finalizing Gtk{Button,Image,Window},
+   but it still has children left: GtkPopover` messages from the OCR
+   dialog's teardown. Because screenshot capture is not wired into
+   `d.check(...)`, a screenshot that never actually renders still prints
+   "DRIVE OK" — this is exactly the "a check that doesn't fire is not the
+   same as a check that passes" shape this skill exists to catch, just on
+   the artifact side of the harness rather than the assertion side.
 
 ## Verdict
 
 **No deliberate excuse-writing was found in `lib/`, `exe/`, or any
-pre-existing report — that specific failure mode is absent.** But the
-runtime gate this round is being asked to trust (193/193, DRIVE OK, 40
-components) is not the clean signal it looks like: it is a narrow,
-honestly-labeled smoke test over the roughly-half of the app that exists,
-mixed with absence-confirming checks, standing in for a formally-configured
-RSpec suite that has executed zero examples. Call this what it is — **a
-green gate measuring a fraction of the app, with no document in the repo
-saying so until this one** — rather than letting "193 passed, 0 failed"
-be read as "the port works."
+pre-existing report — that specific failure mode is absent, confirmed
+again this round.** But the runtime gate this round is being asked to
+trust (200/200, DRIVE OK, 48 components) is not the clean signal it looks
+like: it is a narrow, honestly-labeled smoke test over roughly half the
+upstream component surface, mixed with absence-confirming checks and at
+least one silently-failed screenshot capture, standing in for a
+formally-configured RSpec suite that has executed zero examples. Call
+this what it is — **a green gate measuring a fraction of the app, with a
+render failure inside the very run that produced the green number** —
+rather than letting "200 passed, 0 failed" be read as "the port works."

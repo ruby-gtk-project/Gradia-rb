@@ -48,6 +48,17 @@ corresponding msgid.
 3. **Languages ship?** No. 0 of upstream's 20 `.po` files were copied over,
    and no `.mo` build step exists to produce one even if they were.
 
+## Re-verified this pass
+
+Re-run at the current `ruby` HEAD (`59f3f19`, after the OCR dialog
+landed): `find po -maxdepth 1` still returns nothing, and
+`grep -rl "gettext\|FastGettext\|_(" lib exe` still returns nothing —
+`lib/ocr_dialog.rb`'s page titles and its copy-to-clipboard
+button/toast text are bare literals too, same as every other string in
+the port (see `.reports/component-parity.md`'s quick-color-picker and
+OCR-dialog spot-checks for the component-level instances of this same
+gap). Nothing has changed since the prior pass of this report.
+
 ## Verdict
 
 **Translation parity: 0%, complete absence, not a partial gap.** This is

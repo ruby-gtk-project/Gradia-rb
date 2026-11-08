@@ -45,16 +45,28 @@ that report).
 
 ## What actually runs: `test/drive_app.rb`
 
-`test/drive_app.rb` is an 853-line manual smoke-test script (not RSpec, no
-`describe`/`it`) that drives the live app under `xvfb-run` and asserts 193
-`d.check(...)` conditions, grouped into 85 numbered steps. Run directly:
+`test/drive_app.rb` is now a 936-line manual smoke-test script (not RSpec,
+no `describe`/`it`) that drives the live app under `xvfb-run` and asserts
+200 `d.check(...)` conditions, grouped into 91 numbered steps (grown from
+853 lines / 193 checks / 85 steps in the prior pass, by the addition of
+OCR-dialog coverage in commit `59f3f19`). Run directly:
 
 ```
 nix develop --command xvfb-run -a ruby test/drive_app.rb
 ```
 
-returns `193 of 193 checks passed` / `DRIVE OK` — this is the "193 checks
-passed, 0 failed, covering 40 components" the task's runtime gate cites.
+returns `200 of 200 checks passed` / `DRIVE OK` — this is the "200 checks
+passed, 0 failed, covering 48 components" the task's runtime gate cites
+for this round, re-run live for this audit rather than taken on faith.
+One non-fatal rendering warning appeared in this run's output that is
+worth flagging even though it is not one of the 200 counted checks:
+`shot 16-window-final failed: RuntimeError: widget produced no render
+node (not realised yet?)`, alongside several `Gtk-WARNING: Finalizing
+GtkButton/GtkImage/GtkWindow, but it still has children left: GtkPopover`
+messages during the OCR-dialog teardown steps. The script does not treat
+either as a check failure, but a screenshot that silently fails to render
+is itself a gap in what "DRIVE OK" verifies: the final full-window
+screenshot this round did not actually get taken.
 
 Three things a reader must not infer from that number:
 
@@ -64,13 +76,16 @@ Three things a reader must not infer from that number:
    measures — there is no upstream census it maps onto.
 2. **It only exercises components that exist.** Its own header comment
    says so outright: it drives "the overlay split view, the welcome page
-   ..., and every widget those are built from," plus six widgets (FontDropdown,
-   TextEntryPopover, DrawingToolsGrid, PinWindow, QuickColorPicker,
-   SimpleColorPicker) "ported but not yet wired into any parent widget by
-   the app itself," in a
-   scratch window built solely for the test. It does not and cannot
-   exercise the main window, image stack, sidebar, OCR flow, preferences,
-   crop, zoom, or image load/export, because none of those exist (see
+   ..., and every widget those are built from," plus seven widgets
+   (FontDropdown, TextEntryPopover, DrawingToolsGrid, PinWindow,
+   QuickColorPicker, SimpleColorPicker, and now OCRDialog) "ported but not
+   yet wired into any parent widget by the app itself," in a scratch
+   window built solely for the test — the header even names why OCRDialog
+   specifically can't be reached for real: "OCRDialog's launcher and the
+   image pipeline it would receive a path from are not ported yet
+   either." It does not and cannot exercise the main window, image stack,
+   sidebar, the real OCR launch flow, preferences, crop, zoom, or image
+   load/export, because none of those exist (see
    component-identification / component-parity reports). A check suite
    that cannot reach code that doesn't exist has not verified that code is
    fine; it has simply never looked.
@@ -87,13 +102,21 @@ Three things a reader must not infer from that number:
 
 **Test parity: not established, and the suite that exists cannot establish
 it.** There is no upstream suite to count against (state this plainly rather
-than silently reporting 0/0 as success). The port's chosen test framework
+than silently reporting 0/0 as success) — re-confirmed this pass:
+`git ls-tree -r --name-only origin/main | grep -iE "test|spec"` still
+returns nothing but incidental "aspect_ratio" path matches, and
+`spec/` on `ruby` still holds exactly `spec/README.md` and
+`spec/spec_helper.rb`, zero `*_spec.rb` files, and still reports
+`0 examples, 0 failures` when run. The port's chosen test framework
 (RSpec via `kettle-test`) has zero specs and has therefore never been
 exercised at all for this app. The only suite that has actually run and
 passed is a hand-written smoke test that: (a) is not a parity artifact
 against anything upstream, (b) by its own documentation only reaches the
-~40% of the app that exists, and (c) counts "feature confirmed absent" checks
-toward the same total as "feature confirmed working" checks. Citing
-"193/193, DRIVE OK" as evidence the port is tested is a narrower claim than
-it's usually read as — the next report (accountability-ensurance) treats
-over-reading that number as a false-green risk in its own right.
+roughly-two-thirds of the app's *ported* files that exist, which is itself
+well under the full upstream component count (see
+component-identification/-parity), and (c) counts "feature confirmed
+absent" checks toward the same total as "feature confirmed working"
+checks. Citing "200/200, DRIVE OK" as evidence the port is tested is a
+narrower claim than it's usually read as — the next report
+(accountability-ensurance) treats over-reading that number as a
+false-green risk in its own right.
