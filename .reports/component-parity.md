@@ -32,13 +32,24 @@ simultaneously unmet by construction.
 ## Components that exist and were spot-checked
 
 For the roughly half of the inventory marked present, this audit spot-checked
-a handful rather than exhaustively walking all four axes on all ~25 files
+a handful rather than exhaustively walking all four axes on all ~26 files
 (that would be its own multi-day pass). Spot checks:
 
 - `lib/confirm_close_dialog.rb`, `lib/delete_screenshots_dialog.rb`,
   `lib/gradient_step_dialog.rb` — present, built with the house
   memoized/`.tap` style, and read as faithful to their upstream
   counterparts' widget trees on inspection.
+- `lib/quick_color_picker.rb` (ported since the prior pass of this report)
+  — count and behaviour read as faithful: same 6 base swatches plus a
+  "more colours" button in `QuickColorPicker`, same 6 swatches plus
+  Transparent plus "more colours" in `SimpleColorPicker`'s popover,
+  wired to the same system colour dialog. **Text axis fails**: upstream
+  marks every one of 'Red', 'Green', 'Blue', 'Yellow', 'Black', 'White',
+  'Transparent', 'More Colors' and 'Choose Color' with `_()`
+  (`gradia/ui/widget/quick_color_picker.py:24-108`); the port's version
+  has every one of those same nine strings as a bare literal with no
+  translation marker — one more component-level instance of the gap the
+  translation-parity report states at the catalogue level.
 - `lib/drawing_actions.rb` ports the 9 concrete `DrawingAction` subclasses
   and `DrawingMode`/`QuadBounds` as a model, but — per the inventory — has
   no `drawing_overlay.rb` to ever invoke it from pointer input. A model
@@ -51,7 +62,7 @@ a handful rather than exhaustively walking all four axes on all ~25 files
   though none of those pages exist yet to exercise it.
 
 **This audit does not certify full four-axis parity on any single
-component**, including the ones that exist, because doing so for ~25 files
+component**, including the ones that exist, because doing so for ~26 files
 against their upstream Python/Blueprint sources is outside what this pass
 completed. Treat the "present" column in the component inventory as "a file
 exists and was not read line-by-line against upstream in this pass" rather

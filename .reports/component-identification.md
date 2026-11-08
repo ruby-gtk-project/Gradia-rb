@@ -3,13 +3,19 @@
 This skill's output for this audit is the inventory already on disk at
 `.reports/component-inventory.md`, produced by a prior pass of this same
 skill against `origin/main` vs. `lib/`. It was re-read and spot-checked
-in this audit, not rewritten, because re-deriving it from scratch reached
-the same conclusions.
+in this audit, not simply trusted: re-checking it against the current
+`ruby` HEAD found one stale row — `lib/quick_color_picker.rb` was ported
+in a commit made after the inventory was last written, and the inventory
+still said "no" for it. That row is corrected in this pass (see
+`.reports/component-inventory.md`'s Totals section). Every other row was
+re-derived from scratch and reached the same conclusions the existing
+inventory already stated.
 
-Headline counts from that inventory, unchanged by this pass:
+Headline counts from that inventory, corrected by this pass:
 
-- **Present**: ~25 of the ~58 upstream units it lists (the graphics/model
-  layer, most standalone widgets/selectors/buttons, several dialogs).
+- **Present**: ~26 of the ~58 upstream units it lists (the graphics/model
+  layer, most standalone widgets/selectors/buttons, several dialogs, and
+  now the quick color picker).
 - **MISSING outright**: the main window (`GradiaMainWindow`), the image
   stack, the image sidebar, the drawing-tools group, the drawing overlay
   that drives pointer input into the drawing-action model, the crop
@@ -21,9 +27,13 @@ Headline counts from that inventory, unchanged by this pass:
   actually installs, because the window that would install them does not
   exist.
 
-See `.reports/component-inventory.md` for the full per-file table this
-audit confirms is still accurate as of `origin/ruby` HEAD and
-`origin/main` HEAD at the time of this audit.
+See `.reports/component-inventory.md` for the full per-file table, now
+corrected (one row) and re-verified as of `origin/ruby` HEAD
+(`f90fb2c`) and `origin/main` HEAD at the time of this audit. The one
+correction (quick color picker) does not change the headline finding:
+the main window, image stack, sidebar, drawing/crop overlays, zoom
+controller, preferences window and all its pages, and the OCR
+dialog/launcher are still entirely missing.
 
 ## What this audit adds
 

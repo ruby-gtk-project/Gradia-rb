@@ -45,16 +45,16 @@ that report).
 
 ## What actually runs: `test/drive_app.rb`
 
-`test/drive_app.rb` is a 751-line manual smoke-test script (not RSpec, no
-`describe`/`it`) that drives the live app under `xvfb-run` and asserts 171
-`d.check(...)` conditions, grouped into 71 numbered steps. Run directly:
+`test/drive_app.rb` is an 853-line manual smoke-test script (not RSpec, no
+`describe`/`it`) that drives the live app under `xvfb-run` and asserts 193
+`d.check(...)` conditions, grouped into 85 numbered steps. Run directly:
 
 ```
 nix develop --command xvfb-run -a ruby test/drive_app.rb
 ```
 
-returns `171 of 171 checks passed` / `DRIVE OK` — this is the "171 checks
-passed, 0 failed, covering 34 components" the task's runtime gate cites.
+returns `193 of 193 checks passed` / `DRIVE OK` — this is the "193 checks
+passed, 0 failed, covering 40 components" the task's runtime gate cites.
 
 Three things a reader must not infer from that number:
 
@@ -64,8 +64,10 @@ Three things a reader must not infer from that number:
    measures — there is no upstream census it maps onto.
 2. **It only exercises components that exist.** Its own header comment
    says so outright: it drives "the overlay split view, the welcome page
-   ..., and every widget those are built from," plus four widgets "ported
-   but not yet wired into any parent widget by the app itself," in a
+   ..., and every widget those are built from," plus six widgets (FontDropdown,
+   TextEntryPopover, DrawingToolsGrid, PinWindow, QuickColorPicker,
+   SimpleColorPicker) "ported but not yet wired into any parent widget by
+   the app itself," in a
    scratch window built solely for the test. It does not and cannot
    exercise the main window, image stack, sidebar, OCR flow, preferences,
    crop, zoom, or image load/export, because none of those exist (see
@@ -76,9 +78,9 @@ Three things a reader must not infer from that number:
    Step 2 includes: `d.check('the loaders are not ported, so win.open is
    absent') { app.window.lookup_action('open').nil? }`. This is written
    honestly — the check's own name says what's missing — but it means the
-   171/171 total is partly built from assertions that a missing feature is
+   193/193 total is partly built from assertions that a missing feature is
    still missing, not from assertions that a feature works. Rolling that
-   into a single "171 passed" headline number flattens "verified working"
+   into a single "193 passed" headline number flattens "verified working"
    and "verified absent" into the same green tally.
 
 ## Verdict
@@ -92,6 +94,6 @@ passed is a hand-written smoke test that: (a) is not a parity artifact
 against anything upstream, (b) by its own documentation only reaches the
 ~40% of the app that exists, and (c) counts "feature confirmed absent" checks
 toward the same total as "feature confirmed working" checks. Citing
-"171/171, DRIVE OK" as evidence the port is tested is a narrower claim than
+"193/193, DRIVE OK" as evidence the port is tested is a narrower claim than
 it's usually read as — the next report (accountability-ensurance) treats
 over-reading that number as a false-green risk in its own right.
