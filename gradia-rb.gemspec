@@ -96,6 +96,12 @@ Gem::Specification.new do |spec|
   spec.executables = ["gradia"]
   spec.require_paths = ["lib"]
 
+  spec.add_dependency("adwaita")
+  spec.add_dependency("ashpd")
+  spec.add_dependency("glib2")
+  spec.add_dependency("gtk4")
+  spec.add_dependency("soup3")
+
   # NOTE: It is preferable to list development dependencies in the gemspec due to increased
   #       visibility and discoverability.
   #       However, development dependencies in gemspec will install on
@@ -108,15 +114,6 @@ Gem::Specification.new do |spec|
   #
   #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
   #       and preferably a modular one (see gemfiles/modular/*.gemfile).
-
-  # Runtime: the GTK4/Libadwaita toolkit this app is built on, plus the
-  # desktop-portal (file chooser, screenshot) and HTTP (OCR provider calls)
-  # bindings the upstream Python app uses.
-  spec.add_dependency("gtk4")
-  spec.add_dependency("adwaita")
-  spec.add_dependency("glib2")
-  spec.add_dependency("ashpd")
-  spec.add_dependency("soup3")
 
   # Dev, Test, & Release Tasks
   spec.add_development_dependency("kettle-dev", "~> 3.1", ">= 3.1.26")             # ruby >= 3.4
